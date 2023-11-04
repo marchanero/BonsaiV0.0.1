@@ -4,11 +4,14 @@
 #include <ESP8266WiFi.h>
 #include <PubSubClient.h>
 
+// Pin definitions
 const int AirValue = 676;   // you need to replace this value with Value_1
 const int WaterValue = 273; // you need to replace this value with Value_2
 const int SensorPin = A0;
 int soilMoistureValue = 0;
 int soilmoisturepercent = 0;
+// LED Pin
+const int ledPin = 2;
 
 int measure_time = 5000; // 5 seconds
 
@@ -28,12 +31,15 @@ void setup_wifi();
 void reconnect();
 bool checkBound(float newValue, float prevValue, float maxDiff);
 void callback(char *topic, byte *payload, unsigned int length);
+void ledLoopBlink(int repetitions);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
 
 void setup()
 {
+    // Inicializa el LED como salida
+  pinMode(ledPin, OUTPUT);
   Serial.begin(115200); // open serial port, set the baud rate to 9600 bps
   Serial.print("*********************************************");
   Serial.println("soil Moisture Sensor Test!"); // prints title with ending line break
@@ -56,6 +62,8 @@ float maxDiff = 0.5;
 
 void loop()
 {
+  digitalWrite(ledPin, HIGH);
+
   if (!client.connected())
   {
     reconnect();
@@ -90,6 +98,7 @@ void loop()
       String message = String(soilmoisturepercent);
       client.publish(mqtt_topic, (const uint8_t*)message.c_str(), message.length());
       callback(mqtt_topic,(uint8_t*)message.c_str(), message.length());
+      ledLoopBlink(2);
     }
     lastMsg = now;
 
@@ -113,12 +122,27 @@ void setup_wifi()
   {
     delay(1000);
     Serial.print(".");
+    digitalWrite(ledPin, LOW);
+    delay(250);
+    digitalWrite(ledPin, HIGH);
+
   }
 
   Serial.println("");
   Serial.println("WiFi connected");
   Serial.println("IP address: ");
   Serial.println(WiFi.localIP());
+  ledLoopBlink(3);
+}
+void ledLoopBlink(int repetitions){
+  for (int i = 0; i < repetitions; i++)
+  {
+    digitalWrite(ledPin, HIGH);
+    delay(250);
+    digitalWrite(ledPin, LOW);
+    delay(250);
+    digitalWrite(ledPin, HIGH);
+  }
 }
 
 void reconnect()
