@@ -10,6 +10,8 @@ const int SensorPin = A0;
 int soilMoistureValue = 0;
 int soilmoisturepercent = 0;
 
+int measure_time = 5000; // 5 seconds
+
 // Wifi connection variables
 #define wifi_ssid "DIGIFIBRA-cF5T"
 #define wifi_password "P92sKt3FGfsy"
@@ -25,6 +27,7 @@ int soilmoisturepercent = 0;
 void setup_wifi();
 void reconnect();
 bool checkBound(float newValue, float prevValue, float maxDiff);
+void callback(char *topic, byte *payload, unsigned int length);
 
 WiFiClient espClient;
 PubSubClient client(espClient);
@@ -49,7 +52,7 @@ long lastMsg = 0;
 float prevMoisture = 0;
 
 // threshold for sending a message
-float maxDiff = 1;
+float maxDiff = 0.5;
 
 void loop()
 {
@@ -60,7 +63,7 @@ void loop()
   client.loop();
 
   long now = millis();
-  if (now - lastMsg > 2000)
+  if (now - lastMsg > measure_time)
   {
     soilMoistureValue = analogRead(SensorPin); // put Sensor insert into soil
     Serial.println(soilMoistureValue);
@@ -84,9 +87,13 @@ void loop()
       prevMoisture = soilmoisturepercent;
       Serial.print("Publish message: ");
       Serial.println(soilmoisturepercent);
-      client.publish(mqtt_topic, String(soilmoisturepercent).c_str(), true);
+      String message = String(soilmoisturepercent);
+      client.publish(mqtt_topic, (const uint8_t*)message.c_str(), message.length());
+      callback(mqtt_topic,(uint8_t*)message.c_str(), message.length());
     }
     lastMsg = now;
+
+
   }
   delay(5000);
   Serial.println("-------------------------------------------------");
@@ -139,4 +146,16 @@ bool checkBound(float newValue, float prevValue, float maxDiff)
 {
   return !isnan(newValue) &&
          (newValue < prevValue - maxDiff || newValue > prevValue + maxDiff);
+}
+
+void callback(char *topic, byte *payload, unsigned int length)
+{
+  Serial.print("Message arrived [");
+  Serial.print(topic);
+  Serial.print("] ");
+  for (unsigned int i = 0; i < length; i++)
+  {
+    Serial.print((char)payload[i]);
+  }
+  Serial.println();
 }
